@@ -2,6 +2,8 @@
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Input.Touch;
+using Microsoft.Xna.Framework.Audio;
+using Microsoft.Xna.Framework.Media;
 using FirstGame;
 using System.Collections.Generic;
 using System;
@@ -46,7 +48,6 @@ namespace FirstGame
 
         private Texture2D _enemyTexture;
         private List<Enemy> _enemies;
-        // The rate at which the enemies appear
         private TimeSpan _enemySpawnTime;
         private TimeSpan _previousSpawnTime;
 
@@ -60,6 +61,11 @@ namespace FirstGame
 
         private TimeSpan _timeDead;
         private TimeSpan _intervalBetweenDeadAndGameOver;
+
+        private Song _gameMusic;
+        private Song _mainMenuMusic;
+        private SoundEffect _explosionSound;
+        private SoundEffect _laserSound;
 
         private Random _random;
 
@@ -141,6 +147,11 @@ namespace FirstGame
             _enemyTexture = Content.Load<Texture2D>("Graphics/mineAnimation");
             _laserTexture = Content.Load<Texture2D>("Graphics/laser");
             _explosionTexture = Content.Load<Texture2D>("Graphics/explosion");
+
+            _gameMusic = Content.Load<Song>("Sound/gameMusic");
+            _mainMenuMusic = Content.Load<Song>("Sound/menuMusic");
+            _explosionSound = Content.Load<SoundEffect>("Sound/explosion");
+            _laserSound = Content.Load<SoundEffect>("Sound/laserFire");
         }
 
         /// <summary>
@@ -169,10 +180,22 @@ namespace FirstGame
 
             if (gameState == GameState.Main)
             {
+                if (MediaPlayer.State != MediaState.Playing || MediaPlayer.Queue.ActiveSong.Name != "menuMusic")
+                {
+                    MediaPlayer.Volume = 0.6f;
+                    MediaPlayer.Play(_mainMenuMusic);
+                }
+
                 UpdateMenu(gameTime);
             }
             else if (gameState == GameState.Game)
             {
+                if (MediaPlayer.State != MediaState.Playing || MediaPlayer.Queue.ActiveSong.Name != "gameMusic")
+                {
+                    MediaPlayer.Volume = 1.0f;
+                    MediaPlayer.Play(_gameMusic);
+                }
+
                 UpdatePlayer(gameTime);
                 UpdateEnemies(gameTime);
                 UpdateLaser(gameTime);
@@ -356,6 +379,8 @@ namespace FirstGame
 
         private void UpdateCollision(GameTime gameTime)
         {
+            var explosionSoundInstance = _explosionSound.CreateInstance();
+
             // Use the Rectangle’s built-in intersect function to
             // determine if two objects are overlapping
             Rectangle playerRectangle;
@@ -379,8 +404,12 @@ namespace FirstGame
 
                         if (enemy.Health <= 0)
                         {
-                            AddExplosion(new Vector2(enemy.Position.X + enemy.Width / 2, enemy.Position.Y + enemy.Height / 2));
                             enemy.Active = false;
+
+                            AddExplosion(new Vector2(enemy.Position.X + enemy.Width / 2, enemy.Position.Y + enemy.Height / 2));
+
+                            explosionSoundInstance.Volume = 0.2f;
+                            explosionSoundInstance.Play();
                         }
                     }
                 }
@@ -390,13 +419,19 @@ namespace FirstGame
                 {
                     _player.Health -= enemy.Damage;
                     enemy.Health = 0;
+
                     AddExplosion(new Vector2(enemy.Position.X + enemy.Width / 2, enemy.Position.Y + enemy.Height / 2));
+                    explosionSoundInstance.Volume = 0.2f;
+                    explosionSoundInstance.Play();
 
                     if (_player.Health <= 0)
                     {
-                        AddExplosion(new Vector2(_player.Position.X + _player.Width / 2, _player.Position.Y + _player.Height / 2));
                         _player.Active = false;
                         _timeDead = gameTime.TotalGameTime;
+
+                        AddExplosion(new Vector2(_player.Position.X + _player.Width / 2, _player.Position.Y + _player.Height / 2));
+                        explosionSoundInstance.Volume = 0.5f;
+                        explosionSoundInstance.Play();
                     }
                 }
             }
