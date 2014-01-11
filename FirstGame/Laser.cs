@@ -6,6 +6,7 @@ namespace FirstGame
 {
     public class Laser
     {
+        const int defaultLaserSpeed = 20;
         public Texture2D sprite;
         public float scale;
         public Color color;
@@ -27,7 +28,7 @@ namespace FirstGame
             Position = position;
             sprite = texture;
 
-            LaserMoveSpeed = 10;
+            LaserMoveSpeed = defaultLaserSpeed;
             Damage = 10;
             Active = true;
         }

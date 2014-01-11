@@ -18,14 +18,14 @@ namespace FirstGame
         public int Width { get { return EnemyAnimation.FrameWidth; } }
         public int Height { get { return EnemyAnimation.FrameHeight; } }
 
-        public void Initialize(Animation animation, Vector2 position)
+        public void Initialize(Animation animation, Vector2 position, float speed)
         {    
             EnemyAnimation = animation;
             Position = position;
             Active = true;
             Health = 30;
             Damage = 15;
-            enemyMoveSpeed = 4f;
+            enemyMoveSpeed = speed;
             Value = 100;
         }
 

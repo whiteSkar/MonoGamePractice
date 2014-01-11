@@ -4,8 +4,10 @@ using Microsoft.Xna.Framework.Graphics;
 
 namespace FirstGame
 {
-    class Player
+    public class Player
     {
+        const int DefaultHealth = 100;
+
         // Animation representing the player
         //public Texture2D PlayerTexture;
         public Animation PlayerAnimation;
@@ -31,12 +33,19 @@ namespace FirstGame
             get { return PlayerAnimation.FrameHeight; }
         }
 
+        public void Reset(Vector2 position)
+        {
+            Position = position;
+            Active = true;
+            Health = DefaultHealth;
+        }
+
         public void Initialize(Animation animation, Vector2 position)
         {
             PlayerAnimation = animation;
             Position = position;
             Active = true;
-            Health = 100;
+            Health = DefaultHealth;
         }
 
         public void Update(GameTime gameTime)

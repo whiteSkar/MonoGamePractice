@@ -8,11 +8,19 @@ using System;
 
 namespace FirstGame
 {
+    public enum GameState
+    {
+        Main,
+        Game,
+        GameOver
+    }
+
     /// <summary>
     /// This is the main type for your game
     /// </summary>
     public class FirstGame : Game
     {
+        public GameState gameState;
         public const float gameScale = 1f;
 
         private GraphicsDeviceManager _graphics;
@@ -26,10 +34,13 @@ namespace FirstGame
         private MouseState _currentMouseState;
         private MouseState _previousMouseState;
 
+        private Vector2 _defaultPlayerPosition;
         private float _playerMoveSpeed;
 
+        private Texture2D _mainMenuTexture;
+        private Texture2D _gameOverTexutre;
         private Texture2D _bottomBackgroundTexture;
-        private Rectangle _bottomBackgroundRectangle;
+        private Rectangle _wholeScreenRectangle;
         private ParallexBackground _midBackgroundParrallex;
         private ParallexBackground _topBackgroundParallex;
 
@@ -47,6 +58,9 @@ namespace FirstGame
         private Texture2D _explosionTexture;
         private List<Explosion> _explosions;
 
+        private TimeSpan _timeDead;
+        private TimeSpan _intervalBetweenDeadAndGameOver;
+
         private Random _random;
 
         public FirstGame()
@@ -63,12 +77,12 @@ namespace FirstGame
         /// </summary>
         protected override void Initialize()
         {
-            // TODO: Add your initialization logic here
+            gameState = GameState.Main;
             _player = new Player();
-            //Background
+
             _midBackgroundParrallex = new ParallexBackground();
             _topBackgroundParallex = new ParallexBackground();
-            _bottomBackgroundRectangle = new Rectangle(0, 0, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height);
+            _wholeScreenRectangle = new Rectangle(0, 0, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height);
 
             _playerMoveSpeed = 8.0f;
 
@@ -76,19 +90,32 @@ namespace FirstGame
             _lasers = new List<Laser>();
             _explosions = new List<Explosion>();
 
-            // Set the time keepers to zero
             _previousSpawnTime = TimeSpan.Zero;
             _previousLaserSpawnTime = TimeSpan.Zero;
 
-            // Used to determine how fast enemy respawns
-            _enemySpawnTime = TimeSpan.FromSeconds(1.0f);
-            _minimumLaserSpawnIntervalTime = TimeSpan.FromSeconds(0.3f);
+            _enemySpawnTime = TimeSpan.FromSeconds(0.7f);
+            _minimumLaserSpawnIntervalTime = TimeSpan.FromSeconds(0.2f);
+            _intervalBetweenDeadAndGameOver = TimeSpan.FromSeconds(1.0f);
 
             _random = new Random();
 
             TouchPanel.EnabledGestures = GestureType.FreeDrag;
 
             base.Initialize();
+        }
+
+        private void resetGame(GameState gameState)
+        {
+            this.gameState = gameState;
+
+            _player.Reset(_defaultPlayerPosition);
+
+            _enemies = new List<Enemy>();
+            _lasers = new List<Laser>();
+            _explosions = new List<Explosion>();
+
+            _previousSpawnTime = TimeSpan.Zero;
+            _previousLaserSpawnTime = TimeSpan.Zero;
         }
 
         /// <summary>
@@ -100,24 +127,20 @@ namespace FirstGame
             // Create a new SpriteBatch, which can be used to draw textures.
             _spriteBatch = new SpriteBatch(GraphicsDevice);
 
-            // TODO: use this.Content to load your game content here
-            //_player.Initialize(Content.Load<Texture2D>("Graphics\\player"), playerPosition);
+            _mainMenuTexture = Content.Load<Texture2D>("Graphics/mainMenu");
+            _gameOverTexutre = Content.Load<Texture2D>("Graphics/endMenu");
+
             Animation playerAnimation = new Animation();
             Texture2D playerTexture = Content.Load<Texture2D>("Graphics\\shipAnimation");
             playerAnimation.Initialize(playerTexture, Vector2.Zero, 115, 69, 8, 30, Color.White, gameScale, true);
 
-            Vector2 playerPosition = new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, 
+            _defaultPlayerPosition = new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, 
                 GraphicsDevice.Viewport.TitleSafeArea.Y + GraphicsDevice.Viewport.TitleSafeArea.Height / 2);
-            _player.Initialize(playerAnimation, playerPosition);
+            _player.Initialize(playerAnimation, _defaultPlayerPosition);
 
             _enemyTexture = Content.Load<Texture2D>("Graphics/mineAnimation");
             _laserTexture = Content.Load<Texture2D>("Graphics/laser");
             _explosionTexture = Content.Load<Texture2D>("Graphics/explosion");
-
-            // Load the parallaxing background
-            _midBackgroundParrallex.Initialize(Content, "Graphics/bgLayer1", GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height, -1);
-            _topBackgroundParallex.Initialize(Content, "Graphics/bgLayer2", GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height, -2);
-            _bottomBackgroundTexture = Content.Load<Texture2D>("Graphics/mainbackground");
         }
 
         /// <summary>
@@ -136,32 +159,66 @@ namespace FirstGame
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
         {
-            // TODO: Add your update logic here
             _previousGamePadState = _currentGamePadState;
             _previousKeyboardState = _currentKeyboardState;
             _previousMouseState = _currentMouseState;
 
-            // Read the current state of the keyboard and gamepad and store it
             _currentKeyboardState = Keyboard.GetState();
             _currentGamePadState = GamePad.GetState(PlayerIndex.One);
             _currentMouseState = Mouse.GetState();
 
-            UpdatePlayer(gameTime);
-            UpdateEnemies(gameTime);
-            UpdateLaser(gameTime);
-            UpdateCollision();
-            UpdateExplosions(gameTime);
+            if (gameState == GameState.Main)
+            {
+                UpdateMenu(gameTime);
+            }
+            else if (gameState == GameState.Game)
+            {
+                UpdatePlayer(gameTime);
+                UpdateEnemies(gameTime);
+                UpdateLaser(gameTime);
+                UpdateCollision(gameTime);
+                UpdateExplosions(gameTime);
 
-            _midBackgroundParrallex.Update(gameTime);
-            _topBackgroundParallex.Update(gameTime);
+                _midBackgroundParrallex.Update(gameTime);
+                _topBackgroundParallex.Update(gameTime);
+            }
+            else
+            {
+                UpdateGameOver(gameTime);
+            }
 
             base.Update(gameTime);
+        }
+
+        private void UpdateMenu(GameTime gameTime)
+        {
+            if (_currentKeyboardState.IsKeyDown(Keys.Space) || _currentMouseState.LeftButton == ButtonState.Pressed || _currentGamePadState.Buttons.X == ButtonState.Pressed)
+            {
+                _midBackgroundParrallex.Initialize(Content, "Graphics/bgLayer1", GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height, -1);
+                _topBackgroundParallex.Initialize(Content, "Graphics/bgLayer2", GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height, -2);
+                _bottomBackgroundTexture = Content.Load<Texture2D>("Graphics/mainbackground");
+
+                gameState = GameState.Game;
+            }
+        }
+
+        private void UpdateGameOver(GameTime gameTime)
+        {
+            if (_currentKeyboardState.IsKeyDown(Keys.Space) || _currentMouseState.LeftButton == ButtonState.Pressed || _currentGamePadState.Buttons.X == ButtonState.Pressed)
+            {
+                resetGame(GameState.Game);
+            }
         }
 
         private void UpdatePlayer(GameTime gameTime)
         {
             _player.Update(gameTime);
-            if (!_player.Active) return;
+            if (!_player.Active)
+            {
+                if (gameTime.TotalGameTime - _timeDead >= _intervalBetweenDeadAndGameOver)
+                    gameState = GameState.GameOver;
+                return;
+            }
 
             // Windows 8 Touch Gestures for MonoGame
             while (TouchPanel.IsGestureAvailable)
@@ -208,14 +265,14 @@ namespace FirstGame
                 {
                     _player.Position.Y += _playerMoveSpeed;
                 }
+            }
 
-                if (_currentKeyboardState.IsKeyDown(Keys.Space) || _currentGamePadState.Buttons.X == ButtonState.Pressed)
+            if (_currentKeyboardState.IsKeyDown(Keys.Space) || _currentGamePadState.Buttons.X == ButtonState.Pressed)
+            {
+                if (gameTime.TotalGameTime - _previousLaserSpawnTime >= _minimumLaserSpawnIntervalTime)
                 {
-                    if (gameTime.TotalGameTime - _previousLaserSpawnTime >= _minimumLaserSpawnIntervalTime)
-                    {
-                        _previousLaserSpawnTime = gameTime.TotalGameTime;
-                        AddLaser(_player.Position);
-                    }
+                    _previousLaserSpawnTime = gameTime.TotalGameTime;
+                    AddLaser(_player.Position);
                 }
             }
 
@@ -253,7 +310,7 @@ namespace FirstGame
             enemyAnimation.Initialize(_enemyTexture, Vector2.Zero, 47, 61, 8, 30, Color.White, 1f, true);
             Vector2 position = new Vector2(GraphicsDevice.Viewport.Width + _enemyTexture.Width / 2, _random.Next(100, GraphicsDevice.Viewport.Height - 100));
             Enemy enemy = new Enemy();
-            enemy.Initialize(enemyAnimation, position);
+            enemy.Initialize(enemyAnimation, position, _random.Next(2, 6));
             _enemies.Add(enemy);
         }
 
@@ -297,7 +354,7 @@ namespace FirstGame
             }
         }
 
-        private void UpdateCollision()
+        private void UpdateCollision(GameTime gameTime)
         {
             // Use the Rectangle’s built-in intersect function to
             // determine if two objects are overlapping
@@ -339,6 +396,7 @@ namespace FirstGame
                     {
                         AddExplosion(new Vector2(_player.Position.X + _player.Width / 2, _player.Position.Y + _player.Height / 2));
                         _player.Active = false;
+                        _timeDead = gameTime.TotalGameTime;
                     }
                 }
             }
@@ -352,25 +410,34 @@ namespace FirstGame
         {
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
-            // TODO: Add your drawing code here
             _spriteBatch.Begin();
 
-            //Draw the Main Background Texture
-            _spriteBatch.Draw(_bottomBackgroundTexture, _bottomBackgroundRectangle, Color.White);
-            // Draw the moving background
-            _midBackgroundParrallex.Draw(_spriteBatch);
-            _topBackgroundParallex.Draw(_spriteBatch);
+            if (gameState == GameState.Main)
+            {
+                _spriteBatch.Draw(_mainMenuTexture, _wholeScreenRectangle, Color.White);
+            }
+            else if (gameState == GameState.Game)
+            {
+                _spriteBatch.Draw(_bottomBackgroundTexture, _wholeScreenRectangle, Color.White);
+                _midBackgroundParrallex.Draw(_spriteBatch);
+                _topBackgroundParallex.Draw(_spriteBatch);
 
-            _player.Draw(_spriteBatch);
+                _player.Draw(_spriteBatch);
 
-            foreach (var enemy in _enemies)
-                enemy.Draw(_spriteBatch);
+                foreach (var enemy in _enemies)
+                    enemy.Draw(_spriteBatch);
 
-            foreach (var laser in _lasers)
-                laser.Draw(_spriteBatch);
+                foreach (var laser in _lasers)
+                    laser.Draw(_spriteBatch);
 
-            foreach (var explosion in _explosions)
-                explosion.Draw(_spriteBatch);
+                foreach (var explosion in _explosions)
+                    explosion.Draw(_spriteBatch);
+            }
+            else
+            {
+                _spriteBatch.Draw(_gameOverTexutre, _wholeScreenRectangle, Color.White);       
+            }
+
 
             _spriteBatch.End();
 
