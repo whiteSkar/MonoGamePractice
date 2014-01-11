@@ -67,6 +67,8 @@ namespace FirstGame
         private SoundEffect _explosionSound;
         private SoundEffect _laserSound;
 
+        private SpriteFont _spriteFont;
+
         private Random _random;
 
         public FirstGame()
@@ -152,6 +154,8 @@ namespace FirstGame
             _mainMenuMusic = Content.Load<Song>("Sound/menuMusic");
             _explosionSound = Content.Load<SoundEffect>("Sound/explosion");
             _laserSound = Content.Load<SoundEffect>("Sound/laserFire");
+
+            _spriteFont = Content.Load<SpriteFont>("Graphics/gameFont");
         }
 
         /// <summary>
@@ -269,6 +273,7 @@ namespace FirstGame
                 _player.Position.X += _currentGamePadState.ThumbSticks.Left.X * _playerMoveSpeed;
                 _player.Position.Y -= _currentGamePadState.ThumbSticks.Left.Y * _playerMoveSpeed;
 
+                // Side movement should be slower than forward/backward movment
                 if (_currentKeyboardState.IsKeyDown(Keys.Left) || _currentGamePadState.DPad.Left == ButtonState.Pressed)
                 {
                     _player.Position.X -= _playerMoveSpeed;
@@ -446,10 +451,15 @@ namespace FirstGame
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
             _spriteBatch.Begin();
+            var instructionTextPos = new Vector2(_graphics.GraphicsDevice.Viewport.Width / 2, _graphics.GraphicsDevice.Viewport.Height - _graphics.GraphicsDevice.Viewport.Height / 5);
 
             if (gameState == GameState.Main)
             {
                 _spriteBatch.Draw(_mainMenuTexture, _wholeScreenRectangle, Color.White);
+
+                var mainMenuText = "Press space or touch the panel to start.";
+                var textOrigin = _spriteFont.MeasureString(mainMenuText) / 2;
+                _spriteBatch.DrawString(_spriteFont, mainMenuText, instructionTextPos, Color.Gray, 0, textOrigin, 1.5f, SpriteEffects.None, 0.5f);
             }
             else if (gameState == GameState.Game)
             {
@@ -470,9 +480,12 @@ namespace FirstGame
             }
             else
             {
-                _spriteBatch.Draw(_gameOverTexutre, _wholeScreenRectangle, Color.White);       
-            }
+                _spriteBatch.Draw(_gameOverTexutre, _wholeScreenRectangle, Color.White);
 
+                var gameOverText = "Press space or touch the panel to start again.";
+                var textOrigin = _spriteFont.MeasureString(gameOverText) / 2;
+                _spriteBatch.DrawString(_spriteFont, gameOverText, instructionTextPos, Color.Gray, 0, textOrigin, 1.5f, SpriteEffects.None, 0.5f);
+            }
 
             _spriteBatch.End();
 
