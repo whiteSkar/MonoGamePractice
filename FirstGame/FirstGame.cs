@@ -59,6 +59,8 @@ namespace FirstGame
         private Texture2D _explosionTexture;
         private List<Explosion> _explosions;
 
+        private Texture2D _healthBarTexture;
+
         private TimeSpan _timeDead;
         private TimeSpan _intervalBetweenDeadAndGameOver;
 
@@ -144,7 +146,8 @@ namespace FirstGame
 
             _defaultPlayerPosition = new Vector2(GraphicsDevice.Viewport.TitleSafeArea.X, 
                 GraphicsDevice.Viewport.TitleSafeArea.Y + GraphicsDevice.Viewport.TitleSafeArea.Height / 2);
-            _player.Initialize(playerAnimation, _defaultPlayerPosition);
+            _healthBarTexture = Content.Load<Texture2D>("Graphics/1pixel");
+            _player.Initialize(GraphicsDevice, playerAnimation, _defaultPlayerPosition, _healthBarTexture);
 
             _enemyTexture = Content.Load<Texture2D>("Graphics/mineAnimation");
             _laserTexture = Content.Load<Texture2D>("Graphics/laser");

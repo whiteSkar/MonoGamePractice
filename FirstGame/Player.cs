@@ -15,6 +15,8 @@ namespace FirstGame
         // Position of the Player relative to the upper left side of the screen
         public Vector2 Position;
 
+        public HealthBar HealthBar;
+
         // State of the player
         public bool Active;
 
@@ -40,12 +42,13 @@ namespace FirstGame
             Health = DefaultHealth;
         }
 
-        public void Initialize(Animation animation, Vector2 position)
+        public void Initialize(GraphicsDevice graphicsDevice, Animation animation, Vector2 position, Texture2D healthBarTexture)
         {
             PlayerAnimation = animation;
             Position = position;
             Active = true;
             Health = DefaultHealth;
+            HealthBar = new HealthBar(healthBarTexture, new Vector2(Position.X + Width / 2, Position.Y + Height + 10), Width, Health);
         }
 
         public void Update(GameTime gameTime)
@@ -53,11 +56,15 @@ namespace FirstGame
             PlayerAnimation.Active = Active;
             PlayerAnimation.Position = Position;
             PlayerAnimation.Update(gameTime);
+
+            HealthBar.IsActive = Active;
+            HealthBar.Update(gameTime, new Vector2(Position.X + Width / 2, Position.Y + Height + 10), Health);
         }
 
         public void Draw(SpriteBatch spriteBatch)
         {
             PlayerAnimation.Draw(spriteBatch);
+            HealthBar.Draw(spriteBatch);
         }
     }
 }
