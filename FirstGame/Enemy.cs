@@ -26,7 +26,7 @@ namespace FirstGame
             Health = 30;
             Damage = 15;
             enemyMoveSpeed = speed;
-            Value = 100;
+            Value = (int)(23 * speed * speed);
         }
 
         public void Update(GameTime gameTime)

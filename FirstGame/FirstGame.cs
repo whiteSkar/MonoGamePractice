@@ -22,8 +22,17 @@ namespace FirstGame
     /// </summary>
     public class FirstGame : Game
     {
+        public const int DefaultScoreMultiplier = 1;
+        public const int DefaultNumOfConsecutiveHitsNeeded = 3;
+        public Color InterfaceColor = Color.NavajoWhite;
+
+        // Either change public fields to private fields or change to public property
         public GameState gameState;
         public const float gameScale = 1f;
+        public int score;
+        public int scoreMultiplier;
+        public int numOfConsecutiveHits;
+        public int numOfConsecutiveHitsNeeded;
 
         private GraphicsDeviceManager _graphics;
         private SpriteBatch _spriteBatch;
@@ -79,6 +88,13 @@ namespace FirstGame
             Content.RootDirectory = "Content";
         }
 
+        public void ResetScoreMechanism()
+        {
+            scoreMultiplier = DefaultScoreMultiplier;
+            numOfConsecutiveHits = 0;
+            numOfConsecutiveHitsNeeded = DefaultNumOfConsecutiveHitsNeeded;
+        }
+
         /// <summary>
         /// Allows the game to perform any initialization it needs to before starting to run.
         /// This is where it can query for any required services and load any non-graphic
@@ -89,12 +105,13 @@ namespace FirstGame
         {
             gameState = GameState.Main;
             _player = new Player();
+            _playerMoveSpeed = 8.0f;
+            score = 0;
+            ResetScoreMechanism();
 
             _midBackgroundParrallex = new ParallexBackground();
             _topBackgroundParallex = new ParallexBackground();
             _wholeScreenRectangle = new Rectangle(0, 0, GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height);
-
-            _playerMoveSpeed = 8.0f;
 
             _enemies = new List<Enemy>();
             _lasers = new List<Laser>();
@@ -117,6 +134,8 @@ namespace FirstGame
         private void resetGame(GameState gameState)
         {
             this.gameState = gameState;
+            score = 0;
+            ResetScoreMechanism();
 
             _player.Reset(_defaultPlayerPosition);
 
@@ -208,6 +227,7 @@ namespace FirstGame
                 UpdateLaser(gameTime);
                 UpdateCollision(gameTime);
                 UpdateExplosions(gameTime);
+                UpdateScoreMultiplier(gameTime);
 
                 _midBackgroundParrallex.Update(gameTime);
                 _topBackgroundParallex.Update(gameTime);
@@ -328,8 +348,13 @@ namespace FirstGame
             for (int i = _lasers.Count - 1; i >= 0; i--)
             {
                 _lasers[i].Update(gameTime);
+
                 if (_lasers[i].Active == false)
                 {
+                    if (_lasers[i].IsOutOfScreen)
+                    {
+                        ResetScoreMechanism();
+                    }
                     _lasers.RemoveAt(i);
                 }
             }
@@ -409,10 +434,12 @@ namespace FirstGame
                     {
                         laser.Active = false;
                         enemy.Health -= laser.Damage;
+                        numOfConsecutiveHits++;
 
                         if (enemy.Health <= 0)
                         {
                             enemy.Active = false;
+                            score += enemy.Value * scoreMultiplier;
 
                             AddExplosion(new Vector2(enemy.Position.X + enemy.Width / 2, enemy.Position.Y + enemy.Height / 2));
 
@@ -427,6 +454,7 @@ namespace FirstGame
                 {
                     _player.Health -= enemy.Damage;
                     enemy.Health = 0;
+                    ResetScoreMechanism();
 
                     AddExplosion(new Vector2(enemy.Position.X + enemy.Width / 2, enemy.Position.Y + enemy.Height / 2));
                     explosionSoundInstance.Volume = 0.2f;
@@ -442,6 +470,16 @@ namespace FirstGame
                         explosionSoundInstance.Play();
                     }
                 }
+            }
+        }
+
+        private void UpdateScoreMultiplier(GameTime gameTime)
+        {
+            if (numOfConsecutiveHits >= numOfConsecutiveHitsNeeded)
+            {
+                scoreMultiplier++;
+                numOfConsecutiveHitsNeeded++;
+                numOfConsecutiveHits = 0;
             }
         }
 
@@ -462,7 +500,7 @@ namespace FirstGame
 
                 var mainMenuText = "Press space or touch the panel to start.";
                 var textOrigin = _spriteFont.MeasureString(mainMenuText) / 2;
-                _spriteBatch.DrawString(_spriteFont, mainMenuText, instructionTextPos, Color.Gray, 0, textOrigin, 1.5f, SpriteEffects.None, 0.5f);
+                _spriteBatch.DrawString(_spriteFont, mainMenuText, instructionTextPos, InterfaceColor, 0, textOrigin, 1.5f, SpriteEffects.None, 0.5f);
             }
             else if (gameState == GameState.Game)
             {
@@ -480,6 +518,21 @@ namespace FirstGame
 
                 foreach (var explosion in _explosions)
                     explosion.Draw(_spriteBatch);
+
+                var scoreTextPos = new Vector2(_graphics.GraphicsDevice.Viewport.Width - 260, 5);
+                var scoreText = "Score: " + score;
+                _spriteBatch.DrawString(_spriteFont, scoreText, scoreTextPos, InterfaceColor);
+
+                var scoreMultiplierTextPos = new Vector2(_graphics.GraphicsDevice.Viewport.Width - 260, _graphics.GraphicsDevice.Viewport.Height - 40);
+                var scoreMultiplierText = "Score Mutliplier: " + scoreMultiplier + "x";
+                _spriteBatch.DrawString(_spriteFont, scoreMultiplierText, scoreMultiplierTextPos, InterfaceColor);
+
+                // Debugging purpose
+                /*
+                var numOfConsecutiveTextPos = new Vector2(10, _graphics.GraphicsDevice.Viewport.Height - 40);
+                var numOfConsecutiveText = "Num of Consec: " + numOfConsecutiveHits;
+                _spriteBatch.DrawString(_spriteFont, numOfConsecutiveText, numOfConsecutiveTextPos, Color.Black);
+                 */
             }
             else
             {

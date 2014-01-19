@@ -11,6 +11,7 @@ namespace FirstGame
         public float scale;
         public Color color;
         public bool Active;
+        public bool IsOutOfScreen;
         public Vector2 Position;
         public int Damage;
         public float LaserMoveSpeed;
@@ -31,6 +32,7 @@ namespace FirstGame
             LaserMoveSpeed = defaultLaserSpeed;
             Damage = 10;
             Active = true;
+            IsOutOfScreen = false;
         }
 
         public void Update(GameTime gameTime)
@@ -40,6 +42,7 @@ namespace FirstGame
             Position.X += LaserMoveSpeed;
             if (Position.X > ScreenWidth)
             {
+                IsOutOfScreen = true;
                 Active = false;
             }
         }
