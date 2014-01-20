@@ -122,6 +122,9 @@
       <SubType>Designer</SubType>
     </AppxManifest>
     <Content Include="Content\Graphics\1pixel.png" />
+    <Content Include="Content\Graphics\RedFireButton.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Include="Content\Sound\gameMusic.wma">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

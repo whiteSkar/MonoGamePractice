@@ -40,13 +40,11 @@ namespace FirstGame
 
         private KeyboardState _currentKeyboardState;
         private KeyboardState _previousKeyboardState;
-        private GamePadState _currentGamePadState;
-        private GamePadState _previousGamePadState;
         private MouseState _currentMouseState;
         private MouseState _previousMouseState;
 
         private Vector2 _defaultPlayerPosition;
-        private float _playerMoveSpeed;
+        private float _playerMoveSpeed; // have a property speed in player class
 
         private Texture2D _mainMenuTexture;
         private Texture2D _gameOverTexutre;
@@ -69,6 +67,7 @@ namespace FirstGame
         private List<Explosion> _explosions;
 
         private Texture2D _healthBarTexture;
+        private Texture2D _fireButtonTexture;
 
         private TimeSpan _timeDead;
         private TimeSpan _intervalBetweenDeadAndGameOver;
@@ -126,7 +125,7 @@ namespace FirstGame
 
             _random = new Random();
 
-            TouchPanel.EnabledGestures = GestureType.FreeDrag;
+            TouchPanel.EnabledGestures = GestureType.FreeDrag | GestureType.Tap;
 
             base.Initialize();
         }
@@ -171,6 +170,7 @@ namespace FirstGame
             _enemyTexture = Content.Load<Texture2D>("Graphics/mineAnimation");
             _laserTexture = Content.Load<Texture2D>("Graphics/laser");
             _explosionTexture = Content.Load<Texture2D>("Graphics/explosion");
+            _fireButtonTexture = Content.Load<Texture2D>("Graphics/RedFireButton");
 
             _gameMusic = Content.Load<Song>("Sound/gameMusic");
             _mainMenuMusic = Content.Load<Song>("Sound/menuMusic");
@@ -196,12 +196,10 @@ namespace FirstGame
         /// <param name="gameTime">Provides a snapshot of timing values.</param>
         protected override void Update(GameTime gameTime)
         {
-            _previousGamePadState = _currentGamePadState;
             _previousKeyboardState = _currentKeyboardState;
             _previousMouseState = _currentMouseState;
 
             _currentKeyboardState = Keyboard.GetState();
-            _currentGamePadState = GamePad.GetState(PlayerIndex.One);
             _currentMouseState = Mouse.GetState();
 
             if (gameState == GameState.Main)
@@ -242,7 +240,8 @@ namespace FirstGame
 
         private void UpdateMenu(GameTime gameTime)
         {
-            if (_currentKeyboardState.IsKeyDown(Keys.Space) || _currentMouseState.LeftButton == ButtonState.Pressed || _currentGamePadState.Buttons.X == ButtonState.Pressed)
+            if (_currentKeyboardState.IsKeyDown(Keys.Space) || _currentMouseState.LeftButton == ButtonState.Pressed ||
+                (TouchPanel.IsGestureAvailable && TouchPanel.ReadGesture().GestureType == GestureType.Tap))
             {
                 _midBackgroundParrallex.Initialize(Content, "Graphics/bgLayer1", GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height, -1);
                 _topBackgroundParallex.Initialize(Content, "Graphics/bgLayer2", GraphicsDevice.Viewport.Width, GraphicsDevice.Viewport.Height, -2);
@@ -254,7 +253,8 @@ namespace FirstGame
 
         private void UpdateGameOver(GameTime gameTime)
         {
-            if (_currentKeyboardState.IsKeyDown(Keys.Space) || _currentMouseState.LeftButton == ButtonState.Pressed || _currentGamePadState.Buttons.X == ButtonState.Pressed)
+            if (_currentKeyboardState.IsKeyDown(Keys.Space) || _currentMouseState.LeftButton == ButtonState.Pressed ||
+                (TouchPanel.IsGestureAvailable && TouchPanel.ReadGesture().GestureType == GestureType.Tap))
             {
                 resetGame(GameState.Game);
             }
@@ -270,55 +270,50 @@ namespace FirstGame
                 return;
             }
 
-            // Windows 8 Touch Gestures for MonoGame
-            while (TouchPanel.IsGestureAvailable)
+            TouchCollection touches = TouchPanel.GetState();
+            foreach (TouchLocation touch in touches)
             {
-                GestureSample gesture = TouchPanel.ReadGesture();
-
-                if (gesture.GestureType == GestureType.FreeDrag)
+                if (touch.State == TouchLocationState.Pressed || touch.State == TouchLocationState.Moved) // modify
                 {
-                    _player.Position += gesture.Delta;
+                    Vector2 displacement = touch.Position - _player.Position;
+                    displacement.Normalize();
+                    _player.Position += displacement * _playerMoveSpeed;
                 }
             }
 
             if (_currentMouseState.LeftButton == ButtonState.Pressed)
             {
                 Vector2 mousePosition = new Vector2(_currentMouseState.X, _currentMouseState.Y);
-                Vector2 posDelta = mousePosition - _player.Position;
 
-                posDelta.Normalize();
-                posDelta = posDelta * _playerMoveSpeed;
-                _player.Position = _player.Position + posDelta;
+                Vector2 displacement = mousePosition - _player.Position;
+                displacement.Normalize();
+                _player.Position += displacement * _playerMoveSpeed;
             }
             else
             {
-                // Thumbstick
-                _player.Position.X += _currentGamePadState.ThumbSticks.Left.X * _playerMoveSpeed;
-                _player.Position.Y -= _currentGamePadState.ThumbSticks.Left.Y * _playerMoveSpeed;
-
                 // Side movement should be slower than forward/backward movment
-                if (_currentKeyboardState.IsKeyDown(Keys.Left) || _currentGamePadState.DPad.Left == ButtonState.Pressed)
+                if (_currentKeyboardState.IsKeyDown(Keys.Left))
                 {
                     _player.Position.X -= _playerMoveSpeed;
                 }
 
-                if (_currentKeyboardState.IsKeyDown(Keys.Right) || _currentGamePadState.DPad.Right == ButtonState.Pressed)
+                if (_currentKeyboardState.IsKeyDown(Keys.Right))
                 {
                     _player.Position.X += _playerMoveSpeed;
                 }
 
-                if (_currentKeyboardState.IsKeyDown(Keys.Up) || _currentGamePadState.DPad.Up == ButtonState.Pressed)
+                if (_currentKeyboardState.IsKeyDown(Keys.Up))
                 {
                     _player.Position.Y -= _playerMoveSpeed;
                 }
 
-                if (_currentKeyboardState.IsKeyDown(Keys.Down) || _currentGamePadState.DPad.Down == ButtonState.Pressed)
+                if (_currentKeyboardState.IsKeyDown(Keys.Down))
                 {
                     _player.Position.Y += _playerMoveSpeed;
                 }
             }
 
-            if (_currentKeyboardState.IsKeyDown(Keys.Space) || _currentGamePadState.Buttons.X == ButtonState.Pressed)
+            if (_currentKeyboardState.IsKeyDown(Keys.Space))
             {
                 if (gameTime.TotalGameTime - _previousLaserSpawnTime >= _minimumLaserSpawnIntervalTime)
                 {
@@ -327,10 +322,8 @@ namespace FirstGame
                 }
             }
 
-            _player.Position.X = MathHelper.Clamp(_player.Position.X, 0,
-                GraphicsDevice.Viewport.Width - (_player.Width * _player.PlayerAnimation.scale));
-            _player.Position.Y = MathHelper.Clamp(_player.Position.Y, 0, 
-                GraphicsDevice.Viewport.Height - (_player.Height * _player.PlayerAnimation.scale));
+            _player.Position.X = MathHelper.Clamp(_player.Position.X, 0, GraphicsDevice.Viewport.Width - (_player.Width * _player.PlayerAnimation.scale));
+            _player.Position.Y = MathHelper.Clamp(_player.Position.Y, 0, GraphicsDevice.Viewport.Height - (_player.Height * _player.PlayerAnimation.scale));
         }
 
         private void AddLaser(Vector2 _playerPosition)
@@ -518,6 +511,10 @@ namespace FirstGame
 
                 foreach (var explosion in _explosions)
                     explosion.Draw(_spriteBatch);
+
+                var fireButtonSize = _graphics.GraphicsDevice.Viewport.Height / 4;
+                var fireButtonRectangle = new Rectangle(0, _graphics.GraphicsDevice.Viewport.Height - fireButtonSize, fireButtonSize, fireButtonSize);
+                _spriteBatch.Draw(_fireButtonTexture, fireButtonRectangle, Color.White);
 
                 var scoreTextPos = new Vector2(_graphics.GraphicsDevice.Viewport.Width - 260, 5);
                 var scoreText = "Score: " + score;
